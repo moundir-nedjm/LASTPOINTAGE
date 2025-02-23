@@ -20,7 +20,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <Clock className="w-12 h-12 text-blue-600 mr-2" />
+            <img src="logo.png" alt="NEDJM Froid Logo" className="h-24 w-auto" />
           </div>
           <h1 className="text-2xl font-bold text-blue-600">NDEJM Froid</h1>
           <p className="text-gray-600">Système de Pointage</p>

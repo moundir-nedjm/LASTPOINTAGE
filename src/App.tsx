@@ -183,33 +183,35 @@ function App() {
     const dernierPointage = pointages
       .filter(p => p.employeId === employeId)
       .sort((a, b) => b.dateEntree.getTime() - a.dateEntree.getTime())[0];
-
-    if (!dernierPointage || dernierPointage.dateSortie) {
-      setPointages([...pointages, {
-        id: Date.now().toString(),
-        employeId,
-        dateEntree: new Date(),
-        dateSortie: null,
-        type: 'entrée',
-        localisation: 'Bureau principal',
-        typeJournee: 'normal',
-        heuresPrevues: 8,
-        kilometrage: 0,
-        interventions: []
-      }]);
-    } else {
-      setPointages(pointages.map(p => 
-        p.id === dernierPointage.id 
-          ? { 
-              ...p, 
-              dateSortie: new Date(), 
-              type: 'sortie',
-              kilometrage: p.kilometrage || 0 + (Math.random() * 50 + 10)
-            }
-          : p
-      ));
-    }
-  };
+  if (!dernierPointage || dernierPointage.dateSortie) {
+    setPointages([...pointages, {
+      id: Date.now().toString(),
+      employeId,
+      dateEntree: new Date(),
+      dateSortie: null,
+      type: 'entrée',
+      localisation: 'Bureau principal',
+      typeJournee: 'normal',
+      heuresPrevues: 8,
+      kilometrage: 0,
+      interventions: []
+    }]);
+  } else {
+    const baseKilometrage = dernierPointage.kilometrage || 0;
+    const additionalKilometrage = Math.floor(Math.random() * 50 + 10);
+    
+    setPointages(pointages.map(p => 
+      p.id === dernierPointage.id 
+        ? { 
+            ...p, 
+            dateSortie: new Date(), 
+            type: 'sortie',
+            kilometrage: baseKilometrage + additionalKilometrage
+          }
+        : p
+    ));
+  }
+};
 
   const getStatutEmploye = (employeId: string) => {
     const employe = employes.find(e => e.id === employeId);
@@ -339,58 +341,79 @@ function App() {
     }
   };
 
-  const handleLogin = (credentials: { email: string; password: string; id: string }) => {
-    // For demonstration, check if the credentials match any employee
-    const employee = employes.find(e => 
-      e.email === credentials.email && 
-      e.id === credentials.id
-    );
-
-    if (employee) {
-      setIsAuthenticated(true);
-    } else {
-      alert('Identifiants invalides');
+  const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  
+  const handleLogin = async (credentials: { email: string; password: string; id: string }) => {
+    try {
+      setIsLoading(true);
+      setLoginError(null);
+  
+      if (!credentials.email || !credentials.id) {
+        throw new Error('Veuillez remplir tous les champs');
+      }
+  
+      // For demonstration, check if the credentials match any employee
+      const employee = employes.find(e => 
+        e.email.toLowerCase() === credentials.email.toLowerCase() && 
+        e.id === credentials.id
+      );
+  
+      if (employee) {
+        setIsAuthenticated(true);
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('userId', employee.id);
+      } else {
+        throw new Error('Identifiants invalides');
+      }
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : 'Une erreur est survenue');
+    } finally {
+      setIsLoading(false);
     }
   };
-
+  
+  // Add useEffect for authentication persistence
+  useEffect(() => {
+    const isAuth = localStorage.getItem('isAuthenticated') === 'true';
+    const userId = localStorage.getItem('userId');
+    
+    if (isAuth && userId && employes.some(e => e.id === userId)) {
+      setIsAuthenticated(true);
+    }
+  }, []);
+  
   if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
+    return <Login onLogin={handleLogin} isLoading={isLoading} error={loginError} />;
   }
-
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-blue-600 text-white p-4 shadow-lg">
-        <div className="container mx-auto">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
             <div className="flex items-center">
-              <Clock className="w-8 h-8 mr-2" />
+              <img src="/logo.png" alt="NEDJM Froid Logo" className="h-10 w-auto mr-3" />
               <div>
-                <h1 className="text-2xl font-bold">NDEJM Froid</h1>
+                <h1 className="text-xl sm:text-2xl font-bold">NDEJM Froid</h1>
                 <p className="text-sm opacity-90">Système de Pointage</p>
               </div>
             </div>
-            <div className="flex space-x-4">
+            <div className="flex space-x-2 sm:space-x-4">
               <button 
                 onClick={() => setVue('liste')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  vue === 'liste' ? 'bg-white text-blue-600' : 'bg-blue-700 text-white'
-                }`}
+                className={`p-2 sm:px-4 sm:py-2 rounded-lg transition-colors ${vue === 'liste' ? 'bg-white text-blue-600' : 'bg-blue-700 text-white'}`}
               >
                 <Users className="w-5 h-5" />
               </button>
               <button 
                 onClick={() => setVue('interventions')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  vue === 'interventions' ? 'bg-white text-blue-600' : 'bg-blue-700 text-white'
-                }`}
+                className={`p-2 sm:px-4 sm:py-2 rounded-lg transition-colors ${vue === 'interventions' ? 'bg-white text-blue-600' : 'bg-blue-700 text-white'}`}
               >
                 <Tool className="w-5 h-5" />
               </button>
               <button 
                 onClick={() => setVue('statistiques')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  vue === 'statistiques' ? 'bg-white text-blue-600' : 'bg-blue-700 text-white'
-                }`}
+                className={`p-2 sm:px-4 sm:py-2 rounded-lg transition-colors ${vue === 'statistiques' ? 'bg-white text-blue-600' : 'bg-blue-700 text-white'}`}
               >
                 <BarChart2 className="w-5 h-5" />
               </button>
@@ -398,17 +421,84 @@ function App() {
           </div>
         </div>
       </header>
-
-      <main className="container mx-auto py-8 px-4">
+    <div className="min-h-screen bg-gray-100">
+      <header className="bg-blue-600 text-white p-4 shadow-lg">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+            <div className="flex items-center">
+              <img src="/logo.png" alt="NEDJM Froid Logo" className="h-10 w-auto mr-3" />
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold">NDEJM Froid</h1>
+                <p className="text-sm opacity-90">Système de Pointage</p>
+              </div>
+            </div>
+            <div className="flex space-x-2 sm:space-x-4">
+              <button 
+                onClick={() => setVue('liste')}
+                className={`p-2 sm:px-4 sm:py-2 rounded-lg transition-colors ${vue === 'liste' ? 'bg-white text-blue-600' : 'bg-blue-700 text-white'}`}
+              >
+                <Users className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setVue('interventions')}
+                className={`p-2 sm:px-4 sm:py-2 rounded-lg transition-colors ${vue === 'interventions' ? 'bg-white text-blue-600' : 'bg-blue-700 text-white'}`}
+              >
+                <Tool className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setVue('statistiques')}
+                className={`p-2 sm:px-4 sm:py-2 rounded-lg transition-colors ${vue === 'statistiques' ? 'bg-white text-blue-600' : 'bg-blue-700 text-white'}`}
+              >
+                <BarChart2 className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+    <div className="min-h-screen bg-gray-100">
+      <header className="bg-blue-600 text-white p-4 shadow-lg">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+            <div className="flex items-center">
+              <img src="/logo.png" alt="NEDJM Froid Logo" className="h-10 w-auto mr-3" />
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold">NDEJM Froid</h1>
+                <p className="text-sm opacity-90">Système de Pointage</p>
+              </div>
+            </div>
+            <div className="flex space-x-2 sm:space-x-4">
+              <button 
+                onClick={() => setVue('liste')}
+                className={`p-2 sm:px-4 sm:py-2 rounded-lg transition-colors ${vue === 'liste' ? 'bg-white text-blue-600' : 'bg-blue-700 text-white'}`}
+              >
+                <Users className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setVue('interventions')}
+                className={`p-2 sm:px-4 sm:py-2 rounded-lg transition-colors ${vue === 'interventions' ? 'bg-white text-blue-600' : 'bg-blue-700 text-white'}`}
+              >
+                <Tool className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setVue('statistiques')}
+                className={`p-2 sm:px-4 sm:py-2 rounded-lg transition-colors ${vue === 'statistiques' ? 'bg-white text-blue-600' : 'bg-blue-700 text-white'}`}
+              >
+                <BarChart2 className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main className="container mx-auto py-4 sm:py-8 px-4">
         {vue === 'liste' ? (
           <>
-            <div className="mb-6 flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <h2 className="text-xl font-semibold">Filtrer par département:</h2>
+            <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+                <h2 className="text-lg sm:text-xl font-semibold">Filtrer par département:</h2>
                 <select 
                   value={selectedDepartement}
                   onChange={(e) => setSelectedDepartement(e.target.value)}
-                  className="px-4 py-2 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full sm:w-auto px-4 py-2 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="tous">Tous les départements</option>
                   {departements.map(dept => (
@@ -416,30 +506,25 @@ function App() {
                   ))}
                 </select>
               </div>
-              <div className="flex items-center space-x-4">
-                <div className="px-4 py-2 bg-green-100 text-green-800 rounded-lg flex items-center">
+              <div className="grid grid-cols-2 sm:flex gap-2 sm:space-x-4 w-full sm:w-auto">
+                <div className="px-3 py-2 bg-green-100 text-green-800 rounded-lg flex items-center justify-center">
                   <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                  <span>Présent: {getStatistiques().present}</span>
+                  <span className="text-sm">Présent: {getStatistiques().present}</span>
                 </div>
-                <div className="px-4 py-2 bg-red-100 text-red-800 rounded-lg flex items-center">
+                <div className="px-3 py-2 bg-red-100 text-red-800 rounded-lg flex items-center justify-center">
                   <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                  <span>Absent: {getStatistiques().absent}</span>
+                  <span className="text-sm">Absent: {getStatistiques().absent}</span>
                 </div>
-                 <div className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg flex items-center">
+                <div className="px-3 py-2 bg-yellow-100 text-yellow-800 rounded-lg flex items-center justify-center">
                   <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
-                  <span>En congé: {getStatistiques().conge}</span>
+                  <span className="text-sm">En congé: {getStatistiques().conge}</span>
                 </div>
-                <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg flex items-center">
+                <div className="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg flex items-center justify-center">
                   <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                  <span>En mission: {getStatistiques().mission}</span>
-                </div>
-                <div className="px-4 py-2 bg-indigo-100 text-indigo-800 rounded-lg flex items-center">
-                  <div className="w-3 h-3 bg-indigo-500 rounded-full mr-2"></div>
-                  <span>En intervention: {getStatistiques().intervention}</span>
+                  <span className="text-sm">En mission: {getStatistiques().mission}</span>
                 </div>
               </div>
             </div>
-
              <div className="mb-6">
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
@@ -471,21 +556,19 @@ function App() {
                       onClick={() => setSelectedEmploye(selectedEmploye === employe.id ? null : employe.id)}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <UserCircle className="w-12 h-12 text-gray-400 mr-3" />
+                        <div className="flex items-center mb-3 sm:mb-0">
+                          <UserCircle className="w-10 sm:w-12 h-10 sm:h-12 text-gray-400 mr-2 sm:mr-3" />
                           <div>
-                            <h3 className="font-medium">{employe.prenom} {employe.nom}</h3>
-                            <p className="text-sm text-gray-600">{employe.poste}</p>
-                            <div className="flex items-center text-sm text-gray-500 mt-1">
-                              <Briefcase className="w-4 h-4 mr-1" />
+                            <h3 className="font-medium text-sm sm:text-base">{employe.prenom} {employe.nom}</h3>
+                            <p className="text-xs sm:text-sm text-gray-600">{employe.poste}</p>
+                            <div className="flex items-center text-xs sm:text-sm text-gray-500 mt-1">
+                              <Briefcase className="w-3 sm:w-4 h-3 sm:h-4 mr-1" />
                               <span>{employe.departement}</span>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center">
-                          <span className={`px-3 py-1 rounded-full text-sm mr-3 ${
-                            getStatutClass(getStatutEmploye(employe.id))
-                          }`}>
+                        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
+                          <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${getStatutClass(getStatutEmploye(employe.id))}`}>
                             {getStatutEmploye(employe.id)}
                           </span>
                           {employe.statut === 'actif' && (
@@ -494,73 +577,32 @@ function App() {
                                 e.stopPropagation();
                                 handlePointage(employe.id);
                               }}
-                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                              className="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
                             >
                               {getStatutEmploye(employe.id) === 'Présent' ? 'Dépointer' : 'Pointer'}
                             </button>
                           )}
                         </div>
                       </div>
-
                       {selectedEmploye === employe.id && (
                         <div className="mt-4 pt-4 border-t">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="flex items-center text-gray-600">
-                              <Mail className="w-4 h-4 mr-2" />
-                              <span>{employe.email}</span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                            <div className="flex items-center text-gray-600 text-sm overflow-hidden">
+                              <Mail className="w-4 h-4 min-w-[1rem] mr-2" />
+                              <span className="truncate">{employe.email}</span>
                             </div>
-                            <div className="flex items-center text-gray-600">
-                              <Phone className="w-4 h-4 mr-2" />
+                            <div className="flex items-center text-gray-600 text-sm">
+                              <Phone className="w-4 h-4 min-w-[1rem] mr-2" />
                               <span>{employe.telephone}</span>
                             </div>
-                            <div className="flex items-center text-gray-600">
-                              <Calendar className="w-4 h-4 mr-2" />
-                              <span>Embauché le {employe.dateEmbauche.toLocaleDateString('fr-FR')}</span>
+                            <div className="flex items-center text-gray-600 text-sm">
+                              <Calendar className="w-4 h-4 min-w-[1rem] mr-2" />
+                              <span>Embauché le {employe.dateEmbauche.toLocaleDateString()}</span>
                             </div>
-                            <div className="flex items-center text-gray-600">
-                              <Clock4 className="w-4 h-4 mr-2" />
-                              <span>Horaire: {employe.horaires?.debut} - {employe.horaires?.fin}</span>
+                            <div className="flex items-center text-gray-600 text-sm">
+                              <Clock className="w-4 h-4 min-w-[1rem] mr-2" />
+                              <span>{employe.horaires.debut} - {employe.horaires.fin}</span>
                             </div>
-                            <div className="col-span-2">
-                              <h4 className="font-medium mb-2">Compétences:</h4>
-                              <div className="flex flex-wrap gap-2">
-                                {employe.competences.map((comp, idx) => (
-                                  <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                                    {comp}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                            {employe.certifications && (
-                              <div className="col-span-2">
-                                <h4 className="font-medium mb-2">Certifications:</h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {employe.certifications.map((cert, idx) => (
-                                    <span key={idx} className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                                      {cert}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {employe.vehiculeService && (
-                              <div className="flex items-center text-gray-600">
-                                <Car className="w-4 h-4 mr-2" />
-                                <span>Véhicule de service</span>
-                              </div>
-                            )}
-                            {employe.zoneIntervention && (
-                              <div className="col-span-2">
-                                <h4 className="font-medium mb-2">Zones d'intervention:</h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {employe.zoneIntervention.map((zone, idx) => (
-                                    <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
-                                      {zone}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
                           </div>
                         </div>
                       )}
