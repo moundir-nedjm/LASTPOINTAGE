@@ -4,8 +4,10 @@ import type { Employe, Pointage, Departement, Statistiques, Intervention } from 
 import { useSpring, animated } from 'react-spring';
 import AddEmployeeForm from './AddEmployeeForm';
 import AddInterventionForm from './AddInterventionForm';
+import Login from './Login';
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [employes, setEmployes] = useState<Employe[]>([
     {
       id: '1',
@@ -336,6 +338,24 @@ function App() {
       });
     }
   };
+
+  const handleLogin = (credentials: { email: string; password: string; id: string }) => {
+    // For demonstration, check if the credentials match any employee
+    const employee = employes.find(e => 
+      e.email === credentials.email && 
+      e.id === credentials.id
+    );
+
+    if (employee) {
+      setIsAuthenticated(true);
+    } else {
+      alert('Identifiants invalides');
+    }
+  };
+
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
